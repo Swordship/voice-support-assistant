@@ -22,15 +22,7 @@ def load_data():
     return orders, policies
 
 
-# ----------------------------
-# STEP 1: Audio → Text
-# ----------------------------
-
 def transcribe(audio_bytes: bytes, filename: str = "audio.wav") -> str:
-    """
-    Transcribe audio using Groq Whisper.
-    Raises ValueError if audio is empty, silent, or unintelligible.
-    """
     if not audio_bytes:
         raise ValueError("Audio file is empty.")
 
@@ -48,17 +40,12 @@ def transcribe(audio_bytes: bytes, filename: str = "audio.wav") -> str:
     if not transcript:
         raise ValueError("No speech detected in the audio.")
 
-    # Whisper sometimes returns filler for silent audio
     FILLER_PHRASES = {"you", "thank you", "thanks", ".", "...", "the"}
     if transcript.lower() in FILLER_PHRASES:
         raise ValueError("No meaningful speech detected in the audio.")
 
     return transcript
 
-
-# ----------------------------
-# STEP 2: Text → LLM Response
-# ----------------------------
 
 SYSTEM_PROMPT = """You are a friendly customer support assistant for ShopEase, an e-commerce platform.
 Today's date is {today}.
@@ -87,10 +74,6 @@ Rules:
 
 
 def generate_response(query: str, orders: list, policies: dict, retries: int = 3) -> str:
-    """
-    Generate support response using Groq Llama.
-    Retries up to 3 times on rate limit or server errors.
-    """
     prompt = SYSTEM_PROMPT.format(
         today=date.today().isoformat(),
         orders=json.dumps(orders, indent=2),
@@ -112,19 +95,14 @@ def generate_response(query: str, orders: list, policies: dict, retries: int = 3
 
         except InternalServerError:
             if attempt < retries - 1:
-                time.sleep(2 ** attempt)  # exponential backoff: 1s, 2s, 4s
+                time.sleep(2 ** attempt)
                 continue
             raise
 
     raise RuntimeError("LLM service unavailable after multiple retries.")
 
 
-# ----------------------------
-# STEP 3: Text → Audio
-# ----------------------------
-
 async def synthesize(text: str) -> bytes:
-    """Convert text to natural speech using Edge TTS."""
     communicate = edge_tts.Communicate(text, voice="en-US-JennyNeural")
     audio_buffer = io.BytesIO()
     async for chunk in communicate.stream():
@@ -134,24 +112,32 @@ async def synthesize(text: str) -> bytes:
     return audio_buffer.read()
 
 
-# ----------------------------
-# Full pipeline
-# ----------------------------
-
 async def run_pipeline(audio_bytes: bytes, filename: str = "audio.wav") -> dict:
-    """
-    End-to-end pipeline.
-    Returns transcript, response text, and audio bytes.
-    Raises ValueError for bad input, RuntimeError for service failures.
-    """
     orders, policies = load_data()
 
+    # STT
+    t0 = time.perf_counter()
     transcript = transcribe(audio_bytes, filename)
+    stt_ms = round((time.perf_counter() - t0) * 1000)
+
+    # LLM
+    t1 = time.perf_counter()
     response_text = generate_response(transcript, orders, policies)
+    llm_ms = round((time.perf_counter() - t1) * 1000)
+
+    # TTS
+    t2 = time.perf_counter()
     audio_response = await synthesize(response_text)
+    tts_ms = round((time.perf_counter() - t2) * 1000)
 
     return {
         "transcript": transcript,
         "response": response_text,
         "audio_bytes": audio_response,
+        "latency": {
+            "stt_ms": stt_ms,
+            "llm_ms": llm_ms,
+            "tts_ms": tts_ms,
+            "total_ms": stt_ms + llm_ms + tts_ms,
+        }
     }
