@@ -73,21 +73,28 @@ Rules:
 """
 
 
-def generate_response(query: str, orders: list, policies: dict, retries: int = 3) -> str:
+def generate_response(
+    query: str,
+    orders: list,
+    policies: dict,
+    history: list = [],
+    retries: int = 3
+) -> str:
     prompt = SYSTEM_PROMPT.format(
         today=date.today().isoformat(),
         orders=json.dumps(orders, indent=2),
         policies=json.dumps(policies, indent=2),
     )
 
+    messages = [{"role": "system", "content": prompt}]
+    messages.extend(history)
+    messages.append({"role": "user", "content": query})
+
     for attempt in range(retries):
         try:
             response = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
-                messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": query},
-                ],
+                messages=messages,
                 temperature=0.3,
                 max_tokens=200,
             )
@@ -112,28 +119,36 @@ async def synthesize(text: str) -> bytes:
     return audio_buffer.read()
 
 
-async def run_pipeline(audio_bytes: bytes, filename: str = "audio.wav") -> dict:
+async def run_pipeline(
+    audio_bytes: bytes,
+    filename: str = "audio.wav",
+    history: list = []
+) -> dict:
     orders, policies = load_data()
 
-    # STT
     t0 = time.perf_counter()
     transcript = transcribe(audio_bytes, filename)
     stt_ms = round((time.perf_counter() - t0) * 1000)
 
-    # LLM
     t1 = time.perf_counter()
-    response_text = generate_response(transcript, orders, policies)
+    response_text = generate_response(transcript, orders, policies, history)
     llm_ms = round((time.perf_counter() - t1) * 1000)
 
-    # TTS
     t2 = time.perf_counter()
     audio_response = await synthesize(response_text)
     tts_ms = round((time.perf_counter() - t2) * 1000)
+
+    # Append this turn to history
+    updated_history = history + [
+        {"role": "user", "content": transcript},
+        {"role": "assistant", "content": response_text},
+    ]
 
     return {
         "transcript": transcript,
         "response": response_text,
         "audio_bytes": audio_response,
+        "history": updated_history,
         "latency": {
             "stt_ms": stt_ms,
             "llm_ms": llm_ms,
