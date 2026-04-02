@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ShopEase Voice Support</title>
   <style>
@@ -15,164 +15,254 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
       padding: 24px;
     }
 
-    .card {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      border-radius: 16px;
-      padding: 40px;
-      width: 100%;
-      max-width: 560px;
-    }
-
-    h1 {
-      font-size: 22px;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-
-    .subtitle {
-      font-size: 13px;
-      color: #666;
-      margin-bottom: 32px;
-    }
-
-    .mic-btn {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      border: none;
-      background: #2563eb;
-      color: white;
-      font-size: 28px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 16px;
-      transition: all 0.2s;
-    }
-
-    .mic-btn:hover { background: #1d4ed8; transform: scale(1.05); }
-    .mic-btn.recording { background: #dc2626; animation: pulse 1s infinite; }
-    .mic-btn:disabled { background: #333; cursor: not-allowed; transform: none; }
-
-    @keyframes pulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
-      50% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
-    }
-
-    .status {
+    .header {
       text-align: center;
-      font-size: 13px;
-      color: #888;
-      margin-bottom: 28px;
-      min-height: 20px;
+      padding: 32px 0 24px;
     }
 
-    .status.error { color: #f87171; }
+    h1 { font-size: 22px; font-weight: 600; }
+    .subtitle { font-size: 13px; color: #555; margin-top: 4px; }
 
-    .divider {
-      border: none;
-      border-top: 1px solid #2a2a2a;
-      margin-bottom: 24px;
+    .chat-container {
+      width: 100%;
+      max-width: 600px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-bottom: 200px;
     }
 
-    .result { display: none; }
-    .result.visible { display: block; }
-
-    .label {
-      font-size: 11px;
-      color: #555;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 6px;
+    .message {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      animation: fadeIn 0.3s ease;
     }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user { align-items: flex-end; }
+    .message.assistant { align-items: flex-start; }
 
     .bubble {
-      background: #111;
-      border: 1px solid #2a2a2a;
-      border-radius: 10px;
-      padding: 14px 16px;
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 16px;
       font-size: 14px;
       line-height: 1.6;
-      margin-bottom: 16px;
-      color: #ddd;
     }
 
-    .bubble.response { border-color: #1e3a5f; color: #93c5fd; }
+    .user .bubble {
+      background: #2563eb;
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
 
-    .latency {
+    .assistant .bubble {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #ddd;
+      border-bottom-left-radius: 4px;
+    }
+
+    .msg-label {
+      font-size: 11px;
+      color: #444;
+      padding: 0 4px;
+    }
+
+    audio {
+      margin-top: 6px;
+      width: 260px;
+      border-radius: 8px;
+    }
+
+    .controls {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      max-width: 600px;
+      background: #0f0f0f;
+      border-top: 1px solid #1a1a1a;
+      padding: 16px 24px 24px;
+    }
+
+    .latency-bar {
       display: flex;
-      gap: 10px;
-      margin-bottom: 16px;
+      gap: 8px;
+      margin-bottom: 14px;
     }
 
     .lat-chip {
-      background: #111;
-      border: 1px solid #2a2a2a;
-      border-radius: 6px;
-      padding: 6px 10px;
-      font-size: 11px;
-      color: #666;
       flex: 1;
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 11px;
+      color: #555;
       text-align: center;
     }
 
     .lat-chip span {
       display: block;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
-      color: #aaa;
-      margin-top: 2px;
+      color: #888;
+      margin-top: 1px;
     }
 
-    audio {
-      width: 100%;
-      margin-top: 4px;
-      border-radius: 8px;
+    .bottom-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
+
+    .mic-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: none;
+      background: #2563eb;
+      color: white;
+      font-size: 22px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+
+    .mic-btn:hover { background: #1d4ed8; }
+    .mic-btn.recording { background: #dc2626; animation: pulse 1s infinite; }
+    .mic-btn:disabled { background: #222; cursor: not-allowed; }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(220,38,38,0); }
+    }
+
+    .status {
+      font-size: 13px;
+      color: #555;
+      flex: 1;
+    }
+
+    .status.error { color: #f87171; }
+
+    .clear-btn {
+      background: none;
+      border: 1px solid #2a2a2a;
+      color: #555;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .clear-btn:hover { border-color: #444; color: #888; }
+
+    .empty-state {
+      text-align: center;
+      color: #333;
+      margin-top: 60px;
+      font-size: 14px;
+    }
+
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
   </style>
 </head>
 <body>
-  <div class="card">
+  <div class="header">
     <h1>🛍️ ShopEase Support</h1>
     <p class="subtitle">Ask about your orders, returns, or refund policy</p>
+  </div>
 
-    <button class="mic-btn" id="micBtn" title="Hold to record">🎙️</button>
-    <p class="status" id="status">Click to start recording</p>
+  <div class="chat-container" id="chatContainer">
+    <div class="empty-state" id="emptyState">
+      <div class="icon">🎙️</div>
+      <p>Click the mic and ask something</p>
+    </div>
+  </div>
 
-    <hr class="divider"/>
-
-    <div class="result" id="result">
-      <div class="label">You said</div>
-      <div class="bubble" id="transcript">—</div>
-
-      <div class="label">Response</div>
-      <div class="bubble response" id="response">—</div>
-
-      <div class="label">Latency</div>
-      <div class="latency">
-        <div class="lat-chip">STT<span id="stt">—</span></div>
-        <div class="lat-chip">LLM<span id="llm">—</span></div>
-        <div class="lat-chip">TTS<span id="tts">—</span></div>
-        <div class="lat-chip">Total<span id="total">—</span></div>
-      </div>
-
-      <div class="label">Audio Response</div>
-      <audio id="audioPlayer" controls></audio>
+  <div class="controls">
+    <div class="latency-bar" id="latencyBar" style="display:none">
+      <div class="lat-chip">STT<span id="stt">—</span></div>
+      <div class="lat-chip">LLM<span id="llm">—</span></div>
+      <div class="lat-chip">TTS<span id="tts">—</span></div>
+      <div class="lat-chip">Total<span id="total">—</span></div>
+    </div>
+    <div class="bottom-row">
+      <button class="mic-btn" id="micBtn">🎙️</button>
+      <span class="status" id="status">Click to start recording</span>
+      <button class="clear-btn" id="clearBtn">Clear chat</button>
     </div>
   </div>
 
   <script>
     const micBtn = document.getElementById('micBtn');
     const status = document.getElementById('status');
-    const result = document.getElementById('result');
+    const chatContainer = document.getElementById('chatContainer');
+    const emptyState = document.getElementById('emptyState');
+    const latencyBar = document.getElementById('latencyBar');
+    const clearBtn = document.getElementById('clearBtn');
 
     let mediaRecorder, chunks = [];
+    let history = [];
+
+    function addMessage(role, text, audioBase64 = null) {
+      if (emptyState) emptyState.style.display = 'none';
+
+      const msg = document.createElement('div');
+      msg.className = `message ${role}`;
+
+      const label = document.createElement('div');
+      label.className = 'msg-label';
+      label.textContent = role === 'user' ? 'You' : 'ShopEase';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.textContent = text;
+
+      msg.appendChild(label);
+      msg.appendChild(bubble);
+
+      if (audioBase64 && role === 'assistant') {
+        const audioBlob = new Blob(
+          [Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0))],
+          { type: 'audio/mp3' }
+        );
+        const audio = document.createElement('audio');
+        audio.controls = true;
+        audio.src = URL.createObjectURL(audioBlob);
+        audio.autoplay = true;
+        msg.appendChild(audio);
+      }
+
+      chatContainer.appendChild(msg);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    clearBtn.addEventListener('click', () => {
+      history = [];
+      chatContainer.innerHTML = `
+        <div class="empty-state" id="emptyState">
+          <div class="icon">🎙️</div>
+          <p>Click the mic and ask something</p>
+        </div>`;
+      latencyBar.style.display = 'none';
+      status.textContent = 'Click to start recording';
+      status.className = 'status';
+    });
 
     micBtn.addEventListener('click', async () => {
       if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -191,12 +281,13 @@
           micBtn.disabled = true;
           micBtn.classList.remove('recording');
           micBtn.textContent = '⏳';
-          status.textContent = 'Processing your query...';
+          status.textContent = 'Processing...';
           status.className = 'status';
 
           const blob = new Blob(chunks, { type: 'audio/webm' });
           const formData = new FormData();
           formData.append('audio', blob, 'query.webm');
+          formData.append('history', JSON.stringify(history));
 
           try {
             const res = await fetch('/query', { method: 'POST', body: formData });
@@ -206,21 +297,19 @@
               status.textContent = '⚠️ ' + (data.detail || 'Something went wrong.');
               status.className = 'status error';
             } else {
-              document.getElementById('transcript').textContent = data.transcript;
-              document.getElementById('response').textContent = data.response;
+              addMessage('user', data.transcript);
+              addMessage('assistant', data.response, data.audio_base64);
+
+              history = data.history;
+
+              latencyBar.style.display = 'flex';
               document.getElementById('stt').textContent = data.latency.stt_ms + 'ms';
               document.getElementById('llm').textContent = data.latency.llm_ms + 'ms';
               document.getElementById('tts').textContent = data.latency.tts_ms + 'ms';
               document.getElementById('total').textContent = data.latency.total_ms + 'ms';
 
-              const audioBlob = new Blob(
-                [Uint8Array.from(atob(data.audio_base64), c => c.charCodeAt(0))],
-                { type: 'audio/mp3' }
-              );
-              document.getElementById('audioPlayer').src = URL.createObjectURL(audioBlob);
-
-              result.className = 'result visible';
-              status.textContent = 'Done! Click to ask another question.';
+              status.textContent = 'Click to ask another question';
+              status.className = 'status';
             }
           } catch (err) {
             status.textContent = '⚠️ Network error. Is the server running?';
