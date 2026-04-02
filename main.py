@@ -3,7 +3,8 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 from pipeline import run_pipeline
 from dotenv import load_dotenv
-
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 load_dotenv()
 
 app = FastAPI(
@@ -51,8 +52,14 @@ async def query(audio: UploadFile = File(...)):
         "response": result["response"],
         "audio_base64": base64.b64encode(result["audio_bytes"]).decode(),
         "audio_format": "mp3",
+        "latency": result["latency"],
     })
 
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+def root():
+    return FileResponse("static/index.html")
 
 if __name__ == "__main__":
     import uvicorn
