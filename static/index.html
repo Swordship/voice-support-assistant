@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ShopEase Voice Support</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #f0f0f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 40px;
+      width: 100%;
+      max-width: 560px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 32px;
+    }
+
+    .mic-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: none;
+      background: #2563eb;
+      color: white;
+      font-size: 28px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      transition: all 0.2s;
+    }
+
+    .mic-btn:hover { background: #1d4ed8; transform: scale(1.05); }
+    .mic-btn.recording { background: #dc2626; animation: pulse 1s infinite; }
+    .mic-btn:disabled { background: #333; cursor: not-allowed; transform: none; }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+      50% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
+    }
+
+    .status {
+      text-align: center;
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 28px;
+      min-height: 20px;
+    }
+
+    .status.error { color: #f87171; }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #2a2a2a;
+      margin-bottom: 24px;
+    }
+
+    .result { display: none; }
+    .result.visible { display: block; }
+
+    .label {
+      font-size: 11px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+
+    .bubble {
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 16px;
+      color: #ddd;
+    }
+
+    .bubble.response { border-color: #1e3a5f; color: #93c5fd; }
+
+    .latency {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .lat-chip {
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 11px;
+      color: #666;
+      flex: 1;
+      text-align: center;
+    }
+
+    .lat-chip span {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #aaa;
+      margin-top: 2px;
+    }
+
+    audio {
+      width: 100%;
+      margin-top: 4px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🛍️ ShopEase Support</h1>
+    <p class="subtitle">Ask about your orders, returns, or refund policy</p>
+
+    <button class="mic-btn" id="micBtn" title="Hold to record">🎙️</button>
+    <p class="status" id="status">Click to start recording</p>
+
+    <hr class="divider"/>
+
+    <div class="result" id="result">
+      <div class="label">You said</div>
+      <div class="bubble" id="transcript">—</div>
+
+      <div class="label">Response</div>
+      <div class="bubble response" id="response">—</div>
+
+      <div class="label">Latency</div>
+      <div class="latency">
+        <div class="lat-chip">STT<span id="stt">—</span></div>
+        <div class="lat-chip">LLM<span id="llm">—</span></div>
+        <div class="lat-chip">TTS<span id="tts">—</span></div>
+        <div class="lat-chip">Total<span id="total">—</span></div>
+      </div>
+
+      <div class="label">Audio Response</div>
+      <audio id="audioPlayer" controls></audio>
+    </div>
+  </div>
+
+  <script>
+    const micBtn = document.getElementById('micBtn');
+    const status = document.getElementById('status');
+    const result = document.getElementById('result');
+
+    let mediaRecorder, chunks = [];
+
+    micBtn.addEventListener('click', async () => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        chunks = [];
+
+        mediaRecorder.ondataavailable = e => chunks.push(e.data);
+
+        mediaRecorder.onstop = async () => {
+          micBtn.disabled = true;
+          micBtn.classList.remove('recording');
+          micBtn.textContent = '⏳';
+          status.textContent = 'Processing your query...';
+          status.className = 'status';
+
+          const blob = new Blob(chunks, { type: 'audio/webm' });
+          const formData = new FormData();
+          formData.append('audio', blob, 'query.webm');
+
+          try {
+            const res = await fetch('/query', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (!res.ok) {
+              status.textContent = '⚠️ ' + (data.detail || 'Something went wrong.');
+              status.className = 'status error';
+            } else {
+              document.getElementById('transcript').textContent = data.transcript;
+              document.getElementById('response').textContent = data.response;
+              document.getElementById('stt').textContent = data.latency.stt_ms + 'ms';
+              document.getElementById('llm').textContent = data.latency.llm_ms + 'ms';
+              document.getElementById('tts').textContent = data.latency.tts_ms + 'ms';
+              document.getElementById('total').textContent = data.latency.total_ms + 'ms';
+
+              const audioBlob = new Blob(
+                [Uint8Array.from(atob(data.audio_base64), c => c.charCodeAt(0))],
+                { type: 'audio/mp3' }
+              );
+              document.getElementById('audioPlayer').src = URL.createObjectURL(audioBlob);
+
+              result.className = 'result visible';
+              status.textContent = 'Done! Click to ask another question.';
+            }
+          } catch (err) {
+            status.textContent = '⚠️ Network error. Is the server running?';
+            status.className = 'status error';
+          }
+
+          micBtn.disabled = false;
+          micBtn.textContent = '🎙️';
+          stream.getTracks().forEach(t => t.stop());
+        };
+
+        mediaRecorder.start();
+        micBtn.classList.add('recording');
+        micBtn.textContent = '⏹️';
+        status.textContent = 'Recording... click again to stop';
+
+      } catch (err) {
+        status.textContent = '⚠️ Microphone access denied.';
+        status.className = 'status error';
+      }
+    });
+  </script>
+</body>
+</html>
