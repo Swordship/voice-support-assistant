@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 load_dotenv()
+import json
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 
 app = FastAPI(
     title="Voice AI Support Assistant",
@@ -20,11 +22,13 @@ def health():
 
 
 @app.post("/query")
-async def query(audio: UploadFile = File(...)):
+async def query(
+    audio: UploadFile = File(...),
+    history: str = Form(default="[]")
+):
     SUPPORTED = {"wav", "mp3", "m4a", "webm", "ogg", "flac", "mp4", "mpeg"}
-
-    # Validate file format
     ext = audio.filename.rsplit(".", 1)[-1].lower() if audio.filename and "." in audio.filename else ""
+
     if ext not in SUPPORTED:
         raise HTTPException(
             status_code=415,
@@ -34,14 +38,17 @@ async def query(audio: UploadFile = File(...)):
     audio_bytes = await audio.read()
 
     try:
-        result = await run_pipeline(audio_bytes, audio.filename)
+        conversation_history = json.loads(history)
+    except Exception:
+        conversation_history = []
+
+    try:
+        result = await run_pipeline(audio_bytes, audio.filename, conversation_history)
 
     except ValueError as e:
-        # Bad input — empty audio, no speech detected
         raise HTTPException(status_code=400, detail=str(e))
 
     except RuntimeError as e:
-        # Service failure — Groq unavailable
         raise HTTPException(status_code=503, detail=str(e))
 
     except Exception as e:
@@ -52,9 +59,9 @@ async def query(audio: UploadFile = File(...)):
         "response": result["response"],
         "audio_base64": base64.b64encode(result["audio_bytes"]).decode(),
         "audio_format": "mp3",
+        "history": result["history"],
         "latency": result["latency"],
     })
-
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
